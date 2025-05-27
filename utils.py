@@ -1,6 +1,7 @@
 import io
 import requests
 from PIL import Image, ImageDraw, ImageFont
+from aiogram.types import FSInputFile
 
 FONT_PATH = "fonts/DejaVuSans-Bold.ttf"
 
@@ -29,7 +30,7 @@ def wrap_text(text, font, max_width):
     return lines
 
 def generate_shop_image(shop_data):
-    categories = shop_data  # список категорий с товарами
+    categories = shop_data
 
     width = 1000
     padding = 20
@@ -42,11 +43,9 @@ def generate_shop_image(shop_data):
     item_font = ImageFont.truetype(FONT_PATH, 20)
     price_font = ImageFont.truetype(FONT_PATH, 18)
 
-    # Вычисляем высоту: грубо, чтобы уместить все
     height = padding
     for cat in categories:
         height += title_font.getsize(cat['name'])[1] + category_spacing
-        # каждый предмет занимает высоту icon_size + text + item_spacing
         height += len(cat['entries']) * (icon_size + item_spacing)
 
     image = Image.new("RGBA", (width, height), bg_color)
@@ -65,10 +64,8 @@ def generate_shop_image(shop_data):
             img_url = item['images']['icon']
 
             icon = download_image(img_url).resize((icon_size, icon_size))
-
             image.paste(icon, (padding, y), icon)
 
-            # текст с переносом, если длинное название
             max_text_width = width - padding * 2 - icon_size - 100
             lines = wrap_text(name, item_font, max_text_width)
 
@@ -78,7 +75,6 @@ def generate_shop_image(shop_data):
                 draw.text((text_x, text_y), line, font=item_font, fill=text_color)
                 text_y += item_font.getsize(line)[1] + 2
 
-            # цена справа
             price_text = f"{price} V-Bucks"
             price_size = price_font.getsize(price_text)
             price_x = width - padding - price_size[0]
@@ -87,10 +83,10 @@ def generate_shop_image(shop_data):
 
             y += icon_size + item_spacing
 
-        y += category_spacing - item_spacing  # дополнительный отступ после категории
+        y += category_spacing - item_spacing
 
-    # Сохраняем в BytesIO
-    bio = io.BytesIO()
-    image.convert("RGB").save(bio, format="JPEG", quality=90)
-    bio.seek(0)
-    return bio
+    # Сохраняем как временный файл (Aiogram 3 не любит просто BytesIO)
+    filename = "shop.jpg"
+    image.convert("RGB").save(filename, format="JPEG", quality=90)
+
+    return FSInputFile(filename)
